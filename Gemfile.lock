@@ -2,6 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     base64 (0.2.0)
+    bigdecimal (3.1.9)
     daemons (1.4.1)
     eventmachine (1.2.7)
     faye-websocket (0.11.3)
@@ -9,6 +10,9 @@ GEM
       websocket-driver (>= 0.5.1)
     json (2.10.2)
     rack (2.2.13)
+    sequel (5.91.0)
+      bigdecimal
+    sqlite3 (2.6.0-x64-mingw-ucrt)
     thin (1.8.2)
       daemons (~> 1.0, >= 1.0.9)
       eventmachine (~> 1.0, >= 1.0.4)
@@ -25,6 +29,8 @@ DEPENDENCIES
   faye-websocket
   json
   rack
+  sequel
+  sqlite3
   thin
 
 BUNDLED WITH

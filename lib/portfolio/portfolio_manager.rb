@@ -1,24 +1,10 @@
 # lib/portfolio/portfolio_manager.rb
-
-require 'securerandom'
-
 module Portfolio
   class PortfolioManager
-    def self.create_user(name:)
-      user_id = SecureRandom.uuid
-      DB::Database.users[user_id] = {
-        name: name,
-        portfolio: []
-      }
-      user_id
-    end
-
-    def self.place_trade(symbol:, quantity:, price:, trade_type:)
-      # For simplicity, place all trades into a single “global portfolio”
-      # or if you track by user, you’d attach it to that user’s portfolio.
-      # This example uses a global portfolio with key :global.
-      DB::Database.portfolios[:global] ||= []
-      DB::Database.portfolios[:global] << Trade.new(
+    def self.place_trade(user_id:, symbol:, quantity:, price:, trade_type:)
+      trades = DB::Database.db[:trades]
+      trades.insert(
+        user_id: user_id,
         symbol: symbol,
         quantity: quantity,
         price: price,
@@ -26,28 +12,21 @@ module Portfolio
       )
     end
 
-    def self.calculate_performance
-      # In a real system, you'd iterate over all trades or assets and figure out total performance.
-      # We'll do a simplistic approach: sum up the “performance” of each asset
-      # that was purchased and still held.
-      portfolio = DB::Database.portfolios[:global] || []
-      # Group by symbol for a naive approach
+    def self.calculate_performance(user_id:)
+      trades = DB::Database.db[:trades].where(user_id: user_id).all
       holdings = {}
-
-      portfolio.each do |trade|
-        holdings[trade.symbol] ||= { quantity: 0, cost: 0.0 }
-        if trade.trade_type == :buy
-          holdings[trade.symbol][:quantity] += trade.quantity
-          holdings[trade.symbol][:cost] += trade.price * trade.quantity
-        else # :sell
-          holdings[trade.symbol][:quantity] -= trade.quantity
-          holdings[trade.symbol][:cost] -= trade.price * trade.quantity
+      trades.each do |trade|
+        symbol = trade[:symbol]
+        holdings[symbol] ||= { quantity: 0, cost: 0.0 }
+        if trade[:trade_type] == 'buy'
+          holdings[symbol][:quantity] += trade[:quantity]
+          holdings[symbol][:cost] += trade[:price] * trade[:quantity]
+        else
+          holdings[symbol][:quantity] -= trade[:quantity]
+          holdings[symbol][:cost] -= trade[:price] * trade[:quantity]
         end
       end
-
-      # For each symbol, evaluate current price vs cost
       performance_details = {}
-
       holdings.each do |symbol, data|
         next if data[:quantity] <= 0
         asset = Asset.new(
@@ -62,13 +41,22 @@ module Portfolio
           performance: asset.performance
         }
       end
-
       performance_details
     end
 
     def self.run_algorithmic_strategies
-      # In a real system, we might have multiple strategies or a plugin system
-      Strategies::ExampleStrategy.run
+      db = DB::Database.db
+      users = db[:users].where{ strategy !~ 'none' }.all
+      users.each do |user|
+        case user[:strategy]
+        when 'random'
+          Portfolio::Strategies::RandomStrategy.run_for(user[:id])
+        when 'momentum'
+          Portfolio::Strategies::MomentumStrategy.run_for(user[:id])
+        when 'mean_reversion'
+          Portfolio::Strategies::MeanReversionStrategy.run_for(user[:id])
+        end
+      end
     end
   end
 end

@@ -2,252 +2,321 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Financial Portfolio & Chat</title>
+  <title>Financial Portfolio Management & Chat</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 20px;
-    }
-    #performanceTable, th, td {
-      border: 1px solid #333;
-      border-collapse: collapse;
-      padding: 8px;
-    }
     #chatMessages {
       border: 1px solid #ccc;
-      height: 200px;
+      height: 300px;
       overflow-y: auto;
       margin-bottom: 1em;
       padding: 0.5em;
     }
-    #activeUsers {
-      font-size: 0.9em;
-      color: #555;
-    }
   </style>
 </head>
 <body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">PortfolioApp</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <div class="navbar-nav me-auto mb-2 mb-lg-0" id="nav-links">
+          <a class="nav-link" href="#" id="nav-portfolio">Portfolio</a>
+          <a class="nav-link" href="#" id="nav-trade">Trade</a>
+          <a class="nav-link" href="#" id="nav-chat">Chat</a>
+          <a class="nav-link" href="#" id="nav-strategy">Strategy</a>
+        </div>
+        <span class="navbar-text" id="user-display"></span>
+        <a class="btn btn-outline-danger ms-2" href="/logout">Logout</a>
+      </div>
+    </div>
+  </nav>
 
-<h1>Financial Portfolio Management</h1>
+  <!-- Main Content -->
+  <div class="container mt-3" id="main-content">
+    <!-- Portfolio Section -->
+    <div id="portfolio-section" class="d-none">
+      <h2>Portfolio Performance</h2>
+      <button class="btn btn-primary mb-3" id="refreshPerformance">Refresh Portfolio</button>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Quantity</th>
+            <th>Avg. Cost</th>
+            <th>Current Value</th>
+            <th>Performance</th>
+          </tr>
+        </thead>
+        <tbody id="performanceBody"></tbody>
+      </table>
+    </div>
 
-<section>
-  <h2>Portfolio Performance</h2>
-  <button id="refreshPerformance">Refresh Performance</button>
-  <table id="performanceTable">
-    <thead>
-      <tr>
-        <th>Symbol</th>
-        <th>Quantity</th>
-        <th>Avg. Cost</th>
-        <th>Current Value</th>
-        <th>Performance</th>
-      </tr>
-    </thead>
-    <tbody id="performanceBody">
-      <!-- Filled via JS -->
-    </tbody>
-  </table>
-</section>
+    <!-- Trade Section -->
+    <div id="trade-section" class="d-none">
+      <h2>Place a Trade</h2>
+      <form id="tradeForm">
+        <div class="mb-3">
+          <label for="tradeSymbol" class="form-label">Stock</label>
+          <!-- Drop-down of 10 large NYSE stocks -->
+          <select id="tradeSymbol" class="form-select">
+            <option value="AAPL">AAPL - Apple Inc.</option>
+            <option value="MSFT">MSFT - Microsoft Corporation</option>
+            <option value="AMZN">AMZN - Amazon.com Inc.</option>
+            <option value="GOOGL">GOOGL - Alphabet Inc.</option>
+            <option value="META">META - Meta Platforms Inc.</option>
+            <option value="TSLA">TSLA - Tesla Inc.</option>
+            <option value="BRK.A">BRK.A - Berkshire Hathaway</option>
+            <option value="JPM">JPM - JPMorgan Chase</option>
+            <option value="JNJ">JNJ - Johnson & Johnson</option>
+            <option value="V">V - Visa Inc.</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="tradeQuantity" class="form-label">Quantity</label>
+          <input type="number" class="form-control" id="tradeQuantity" value="10">
+        </div>
+        <div class="mb-3">
+          <label for="currentPrice" class="form-label">Market Price</label>
+          <!-- Read–only field for real–time market price -->
+          <input type="text" class="form-control" id="currentPrice" readonly>
+        </div>
+        <div class="mb-3">
+          <label for="tradeType" class="form-label">Type</label>
+          <select id="tradeType" class="form-select">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Place Trade at Market Price</button>
+      </form>
+    </div>
 
-<hr>
+    <!-- Chat Section -->
+    <div id="chat-section" class="d-none">
+      <h2>Chat</h2>
+      <div id="chatMessages"></div>
+      <div class="input-group mb-3">
+        <input type="text" id="chatInput" class="form-control" placeholder="Type a message">
+        <button class="btn btn-outline-secondary" id="sendBtn">Send</button>
+      </div>
+    </div>
 
-<section>
-  <h2>Place a Trade</h2>
-  <label>Symbol: <input type="text" id="tradeSymbol" value="DEMO"></label>
-  <label>Quantity: <input type="number" id="tradeQuantity" value="10"></label>
-  <label>Price: <input type="number" id="tradePrice" value="100"></label>
-  <label>Type:
-    <select id="tradeType">
-      <option value="buy">Buy</option>
-      <option value="sell">Sell</option>
-    </select>
-  </label>
-  <button id="placeTrade">Place Trade</button>
-</section>
-
-<hr>
-
-<section>
-  <h2>Chat</h2>
-  <div>
-    <label>User ID: <input type="text" id="userIdInput" value="user123"></label>
-    <label>Username: <input type="text" id="usernameInput" value="Alice"></label>
-    <button id="joinChatBtn">Join Chat</button>
+    <!-- Strategy Section -->
+    <div id="strategy-section" class="d-none">
+      <h2>Select Your Strategy</h2>
+      <form id="strategyForm">
+        <div class="mb-3">
+          <label for="strategySelect" class="form-label">Choose a Strategy:</label>
+          <select id="strategySelect" class="form-select">
+            <option value="none">None</option>
+            <option value="random">Random Strategy</option>
+            <option value="momentum">Momentum Strategy</option>
+            <option value="mean_reversion">Mean Reversion Strategy</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Strategy</button>
+      </form>
+    </div>
   </div>
-  <div id="chatMessages"></div>
-  <div id="activeUsers">Active users: (none)</div>
-  <div>
-    <input type="text" id="chatInput" placeholder="Type a message" style="width: 70%;">
-    <button id="sendBtn">Send</button>
-  </div>
-</section>
 
-<script>
-  // === Portfolio Performance ===
+  <!-- JavaScript Section -->
+  <script>
+    let currentUser = null;
+    let ws = null;
 
-  const refreshBtn = document.getElementById('refreshPerformance');
-  const performanceBody = document.getElementById('performanceBody');
-
-  refreshBtn.addEventListener('click', async () => {
-    await loadPerformance();
-  });
-
-  async function loadPerformance() {
-    performanceBody.innerHTML = '';
-    try {
-      let response = await fetch('/api/performance');
-      if (!response.ok) throw new Error('Failed to fetch performance data');
-      let data = await response.json();
-
-      // data is an object, with keys = symbol, values = {quantity, avg_cost, current_value, performance}
-      for (let symbol in data) {
-        let row = document.createElement('tr');
-        let record = data[symbol];
-        row.innerHTML = `
-          <td>${symbol}</td>
-          <td>${record.quantity}</td>
-          <td>${record.avg_cost.toFixed(2)}</td>
-          <td>${record.current_value.toFixed(2)}</td>
-          <td>${record.performance.toFixed(2)}</td>
-        `;
-        performanceBody.appendChild(row);
+    // Fetch current user info from the /api/me endpoint.
+    async function fetchCurrentUser() {
+      try {
+        const response = await fetch('/api/me');
+        if (response.ok) {
+          currentUser = await response.json();
+        } else {
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        window.location.href = '/login';
       }
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-
-  // Load performance on page load
-  window.addEventListener('load', loadPerformance);
-
-  // === Place a Trade ===
-  const placeTradeBtn = document.getElementById('placeTrade');
-  placeTradeBtn.addEventListener('click', async () => {
-    let symbol    = document.getElementById('tradeSymbol').value;
-    let quantity  = parseInt(document.getElementById('tradeQuantity').value, 10);
-    let price     = parseFloat(document.getElementById('tradePrice').value);
-    let tradeType = document.getElementById('tradeType').value;
-
-    if (!symbol || !quantity || !price) {
-      alert('Please fill out symbol, quantity, and price.');
-      return;
     }
 
-    try {
-      let response = await fetch('/api/trade', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          symbol: symbol,
-          quantity: quantity,
-          price: price,
-          trade_type: tradeType
-        })
+    // Show a specific section while hiding all others.
+    function showSection(sectionId) {
+      ['portfolio-section', 'trade-section', 'chat-section', 'strategy-section'].forEach(id => {
+        document.getElementById(id).classList.add('d-none');
       });
-      let result = await response.json();
-      if (result.status === 'OK') {
-        alert(`Trade placed: ${tradeType} ${quantity} shares of ${symbol} @ ${price}`);
-        // Optionally refresh performance to show new changes
-        await loadPerformance();
-      } else {
-        alert('Trade failed.');
+      document.getElementById(sectionId).classList.remove('d-none');
+    }
+
+    // Load portfolio performance data.
+    async function loadPerformance() {
+      try {
+        const response = await fetch('/api/performance');
+        if (!response.ok) throw new Error('Error loading performance');
+        const data = await response.json();
+        const tbody = document.getElementById('performanceBody');
+        tbody.innerHTML = '';
+        for (let symbol in data) {
+          const record = data[symbol];
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${symbol}</td>
+            <td>${record.quantity}</td>
+            <td>${record.avg_cost.toFixed(2)}</td>
+            <td>${record.current_value.toFixed(2)}</td>
+            <td>${record.performance.toFixed(2)}</td>
+          `;
+          tbody.appendChild(row);
+        }
+      } catch (error) {
+        alert(error);
       }
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  // === Chat (WebSocket) ===
-  let ws = null;
-  let joined = false;
-
-  const chatMessages = document.getElementById('chatMessages');
-  const activeUsersDiv = document.getElementById('activeUsers');
-  const joinChatBtn = document.getElementById('joinChatBtn');
-  const sendBtn = document.getElementById('sendBtn');
-  const chatInput = document.getElementById('chatInput');
-
-  joinChatBtn.addEventListener('click', () => {
-    if (joined) {
-      alert('You have already joined the chat.');
-      return;
-    }
-    const userId = document.getElementById('userIdInput').value.trim();
-    const username = document.getElementById('usernameInput').value.trim();
-    if (!userId || !username) {
-      alert('Please enter a valid user ID and username.');
-      return;
     }
 
-    // Open WebSocket connection
-    ws = new WebSocket(`ws://${window.location.host}/`);
-    ws.onopen = () => {
-      console.log('[WebSocket] Connected');
-      ws.send(JSON.stringify({ type: 'join', user_id: userId, username: username }));
-      joined = true;
-    };
-    ws.onmessage = (event) => {
-      // Data from server
-      const data = JSON.parse(event.data);
-      if (data.type === 'system') {
-        addSystemMessage(data.message);
-        updateActiveUsers(data.active_users);
-      } else if (data.type === 'message') {
-        addChatMessage(data.username, data.message, data.timestamp);
+    // Update market price for the selected stock via the /api/quote endpoint.
+    async function updateMarketPrice() {
+      const symbol = document.getElementById('tradeSymbol').value;
+      try {
+        const response = await fetch(`/api/quote?symbol=${symbol}`);
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('currentPrice').value = data.price.toFixed(2);
+        } else {
+          document.getElementById('currentPrice').value = 'Error';
+        }
+      } catch (error) {
+        console.error("Error fetching market price:", error);
+        document.getElementById('currentPrice').value = 'Error';
       }
+    }
+
+    // Initialize WebSocket for the chat feature.
+    function initializeWebSocket() {
+      ws = new WebSocket(`ws://${window.location.host}/`);
+      ws.onopen = function() {
+        console.log('[WebSocket] Connected');
+        // Join the chat with the current user's ID and username.
+        ws.send(JSON.stringify({ type: 'join', user_id: currentUser.id, username: currentUser.username }));
+      };
+      ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.type === 'system') {
+          addSystemMessage(data.message);
+        } else if (data.type === 'message') {
+          addChatMessage(data.username, data.message, data.timestamp);
+        }
+      };
+      ws.onclose = function() { addSystemMessage('Chat disconnected'); };
+    }
+
+    // Add a system message to the chat.
+    function addSystemMessage(msg) {
+      const chatMessages = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.classList.add('text-muted');
+      div.innerHTML = `<em>${msg}</em>`;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Add a chat message to the chat window.
+    function addChatMessage(username, msg, timestamp) {
+      const chatMessages = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.innerHTML = `<strong>${username}</strong> [${timestamp}]: ${msg}`;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Load current strategy setting.
+    async function loadStrategy() {
+      try {
+        const response = await fetch('/api/strategy');
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('strategySelect').value = data.strategy;
+        }
+      } catch (error) {
+        console.error('Error loading strategy:', error);
+      }
+    }
+
+    // Set up event listeners.
+    document.getElementById('nav-portfolio').addEventListener('click', () => showSection('portfolio-section'));
+    document.getElementById('nav-trade').addEventListener('click', () => showSection('trade-section'));
+    document.getElementById('nav-chat').addEventListener('click', () => {
+      showSection('chat-section');
+      if (!ws || ws.readyState !== WebSocket.OPEN) initializeWebSocket();
+    });
+    document.getElementById('nav-strategy').addEventListener('click', () => showSection('strategy-section'));
+
+    // When the stock dropdown changes, update the market price.
+    document.getElementById('tradeSymbol').addEventListener('change', updateMarketPrice);
+    // Refresh market price periodically (every 10 seconds).
+    setInterval(updateMarketPrice, 10000);
+
+    // Trade form submission: use the read-only market price.
+    document.getElementById('tradeForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const symbol = document.getElementById('tradeSymbol').value;
+      const quantity = parseInt(document.getElementById('tradeQuantity').value);
+      const price = parseFloat(document.getElementById('currentPrice').value);
+      const tradeType = document.getElementById('tradeType').value;
+      try {
+        const response = await fetch('/api/trade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, quantity, price, trade_type: tradeType })
+        });
+        const result = await response.json();
+        if (result.status === 'OK') {
+          alert(`Trade placed: ${tradeType} ${quantity} shares of ${symbol} at $${price.toFixed(2)}`);
+          loadPerformance();
+        } else {
+          alert('Trade failed');
+        }
+      } catch (error) {
+        alert(error);
+      }
+    });
+
+    // Strategy form submission: update the user's strategy.
+    document.getElementById('strategyForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const strategy = document.getElementById('strategySelect').value;
+      try {
+        const response = await fetch('/api/strategy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ strategy })
+        });
+        const result = await response.json();
+        if (result.status === 'OK') {
+          alert(`Strategy updated to: ${result.strategy}`);
+        } else {
+          alert('Failed to update strategy');
+        }
+      } catch (error) {
+        alert(error);
+      }
+    });
+
+    // On page load, check authentication, set up UI, and update market price.
+    window.onload = async function() {
+      await fetchCurrentUser();
+      document.getElementById('user-display').textContent = "Logged in as " + currentUser.username;
+      showSection('portfolio-section');
+      loadPerformance();
+      loadStrategy();
+      // Set initial market price on the trade form.
+      updateMarketPrice();
     };
-    ws.onclose = () => {
-      console.log('[WebSocket] Disconnected');
-      addSystemMessage('Chat disconnected');
-      joined = false;
-    };
-  });
+  </script>
 
-  sendBtn.addEventListener('click', () => {
-    sendChatMessage();
-  });
-  chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      sendChatMessage();
-    }
-  });
-
-  function sendChatMessage() {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      alert('You must join the chat before sending messages.');
-      return;
-    }
-    const message = chatInput.value.trim();
-    if (message.length === 0) return;
-    ws.send(JSON.stringify({ type: 'message', message }));
-    chatInput.value = '';
-  }
-
-  function addSystemMessage(msg) {
-    const line = document.createElement('div');
-    line.textContent = `[SYSTEM] ${msg}`;
-    line.style.fontStyle = 'italic';
-    chatMessages.appendChild(line);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  function addChatMessage(username, msg, timestamp) {
-    const line = document.createElement('div');
-    line.textContent = `[${timestamp}] ${username}: ${msg}`;
-    chatMessages.appendChild(line);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  function updateActiveUsers(usersMap) {
-    // usersMap is an object of { user_id => { name, active } }
-    const names = Object.values(usersMap).map(u => u.name);
-    if (names.length === 0) {
-      activeUsersDiv.textContent = 'Active users: (none)';
-    } else {
-      activeUsersDiv.textContent = 'Active users: ' + names.join(', ');
-    }
-  }
-</script>
-
+  <!-- Bootstrap JS (optional for navbar collapse behavior) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
