@@ -1,6 +1,9 @@
+# lib/server/web_app.rb
 require 'json'
 require 'rack'
 require 'rack/utils'
+#require auth
+require_relative '../auth/auth_manager'
 
 module MyFinancialApp
   class WebApp
@@ -33,20 +36,74 @@ module MyFinancialApp
         end
       end
 
-      # Place a trade (uses user’s ID)
+      if req.path == '/api/quote' && req.get?
+        symbol = req.params["symbol"]
+        if symbol && !symbol.empty?
+          price = Market::StockData.fetch_price(symbol)
+          return [200, { 'Content-Type' => 'application/json' }, [{ price: price }.to_json]]
+        else
+          return [400, { 'Content-Type' => 'application/json' }, [{ error: "Missing symbol parameter" }.to_json]]
+        end
+      end      
+
       if req.path == '/api/trade' && req.post?
         if req.session["user"]
           data = JSON.parse(req.body.read) rescue {}
+          user_id   = req.session["user"]["id"]
+          symbol    = data["symbol"]
+          quantity  = data["quantity"].to_i
+          price     = data["price"].to_f
+          trade_type = data["trade_type"]
+      
+          if trade_type == "buy"
+            cost = price * quantity
+            user = DB::Database.db[:users].where(id: user_id).first
+            if user.nil? || user[:balance].to_f < cost
+              return [400, { 'Content-Type' => 'application/json' }, [{ error: "Insufficient funds" }.to_json]]
+            end
+            # Deduct funds
+            new_balance = user[:balance].to_f - cost
+            DB::Database.db[:users].where(id: user_id).update(balance: new_balance)
+            # (Optionally, record a snapshot in balance_history table here)
+          elsif trade_type == "sell"
+            holdings = Portfolio::PortfolioManager.calculate_holdings(user_id: user_id)
+            if holdings[symbol].nil? || holdings[symbol] < quantity
+              return [400, { 'Content-Type' => 'application/json' }, [{ error: "Insufficient shares to sell" }.to_json]]
+            end
+            sale_value = price * quantity
+            user = DB::Database.db[:users].where(id: user_id).first
+            new_balance = user[:balance].to_f + sale_value
+            DB::Database.db[:users].where(id: user_id).update(balance: new_balance)
+          end
+      
           Portfolio::PortfolioManager.place_trade(
-            user_id: req.session["user"]["id"],
-            symbol: data["symbol"],
-            quantity: data["quantity"].to_i,
-            price: data["price"].to_f,
-            trade_type: data["trade_type"]
+            user_id: user_id,
+            symbol: symbol,
+            quantity: quantity,
+            price: price,
+            trade_type: trade_type
           )
-          return [200, { 'Content-Type' => 'application/json' }, [{ status: "OK" }.to_json]]
+      
+          # Update session with new balance.
+          updated_user = DB::Database.db[:users].where(id: user_id).first
+          req.session["user"]["balance"] = updated_user[:balance]
+          return [200, { 'Content-Type' => 'application/json' },
+                  [{ status: "OK", balance: updated_user[:balance] }.to_json]]
         else
-          return [401, { 'Content-Type' => 'application/json' }, [{ error: "Not authenticated" }.to_json]]
+          return [401, { 'Content-Type' => 'application/json' },
+                  [{ error: "Not authenticated" }.to_json]]
+        end
+      end
+      
+      # API endpoint to get the current balance.
+      if req.path == '/api/balance' && req.get?
+        if req.session["user"]
+          user = DB::Database.db[:users].where(id: req.session["user"]["id"]).first
+          return [200, { 'Content-Type' => 'application/json' },
+                  [{ balance: user[:balance] }.to_json]]
+        else
+          return [401, { 'Content-Type' => 'application/json' },
+                  [{ error: "Not authenticated" }.to_json]]
         end
       end
 
@@ -79,7 +136,11 @@ module MyFinancialApp
 
       # === Authentication Routes ===
       if req.path == '/login' && req.get?
-        return [200, { 'Content-Type' => 'text/html' }, [login_html]]
+        return [
+          200,
+          { "Content-Type" => "text/html" },
+          [login_html]
+        ]
       end
 
       if req.path == '/login' && req.post?
@@ -113,16 +174,6 @@ module MyFinancialApp
       if req.path == '/logout'
         req.session.clear
         return [302, { 'Location' => '/login' }, []]
-      end
-
-      if req.path == '/api/quote' && req.get?
-        symbol = req.params["symbol"]
-        if symbol && !symbol.empty?
-          price = Market::StockData.fetch_price(symbol)
-          return [200, { 'Content-Type' => 'application/json' }, [{ price: price }.to_json]]
-        else
-          return [400, { 'Content-Type' => 'application/json' }, [{ error: "Missing symbol parameter" }.to_json]]
-        end
       end
 
       [404, { 'Content-Type' => 'application/json' }, [{ error: "Not found" }.to_json]]

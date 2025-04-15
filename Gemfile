@@ -6,3 +6,4 @@ gem "faye-websocket"           # For WebSocket support
 gem "json"
 gem "sequel"                   # ORM for database interactions
 gem "sqlite3"                  # SQLite adapter for Sequel
+gem "dotenv"

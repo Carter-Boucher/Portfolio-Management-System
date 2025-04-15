@@ -13,6 +13,7 @@ require 'portfolio/strategies/mean_reversion_strategy'
 require 'chat/chat_room'
 require 'chat/chat_server'
 require 'server/web_app'
+require 'dotenv/load'
 
 module MyFinancialApp
   Thread.new do

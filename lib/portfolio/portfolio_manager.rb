@@ -11,13 +11,29 @@ module Portfolio
       )
     end
 
+    # Calculate total shares held for each symbol for a user.
+    def self.calculate_holdings(user_id:)
+      trades = DB::Database.db[:trades].where(user_id: user_id).all
+      holdings = {}
+      trades.each do |trade|
+        holdings[trade[:symbol]] ||= 0
+        if trade[:trade_type] == "buy"
+          holdings[trade[:symbol]] += trade[:quantity]
+        else  # sell
+          holdings[trade[:symbol]] -= trade[:quantity]
+        end
+      end
+      holdings
+    end
+
+    # (The calculate_performance method remains as before, updated to accept user_id.)
     def self.calculate_performance(user_id:)
       trades = DB::Database.db[:trades].where(user_id: user_id).all
       holdings = {}
       trades.each do |trade|
         symbol = trade[:symbol]
         holdings[symbol] ||= { quantity: 0, cost: 0.0 }
-        if trade[:trade_type] == 'buy'
+        if trade[:trade_type] == "buy"
           holdings[symbol][:quantity] += trade[:quantity]
           holdings[symbol][:cost] += trade[:price] * trade[:quantity]
         else
@@ -25,6 +41,7 @@ module Portfolio
           holdings[symbol][:cost] -= trade[:price] * trade[:quantity]
         end
       end
+
       performance_details = {}
       holdings.each do |symbol, data|
         next if data[:quantity] <= 0
@@ -45,7 +62,7 @@ module Portfolio
 
     def self.run_algorithmic_strategies
       db = DB::Database.db
-      users = db[:users].where{ strategy !~ 'none' }.all
+      users = db[:users].where{ strategy != 'none' }.all
       users.each do |user|
         case user[:strategy]
         when 'random'

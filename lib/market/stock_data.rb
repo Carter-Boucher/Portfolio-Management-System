@@ -1,5 +1,6 @@
 require 'net/http'
 require 'json'
+require 'dotenv/load'
 
 module Market
   class StockData
@@ -7,7 +8,7 @@ module Market
     @@cache = {}
 
     # API key from .env
-    API_KEY = ""
+    API_KEY = ENV['ALPHA_VANTAGE_API_KEY']
     BASE_URL = "https://www.alphavantage.co/query"
 
     def self.fetch_price(symbol)

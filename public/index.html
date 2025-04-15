@@ -12,6 +12,10 @@
       margin-bottom: 1em;
       padding: 0.5em;
     }
+    #balanceChartContainer {
+      width: 100%;
+      height: 400px;
+    }
   </style>
 </head>
 <body>
@@ -26,6 +30,7 @@
         <div class="navbar-nav me-auto mb-2 mb-lg-0" id="nav-links">
           <a class="nav-link" href="#" id="nav-portfolio">Portfolio</a>
           <a class="nav-link" href="#" id="nav-trade">Trade</a>
+          <a class="nav-link" href="#" id="nav-balance">Balance</a>
           <a class="nav-link" href="#" id="nav-chat">Chat</a>
           <a class="nav-link" href="#" id="nav-strategy">Strategy</a>
         </div>
@@ -81,7 +86,7 @@
         </div>
         <div class="mb-3">
           <label for="currentPrice" class="form-label">Market Price</label>
-          <!-- Read–only field for real–time market price -->
+          <!-- Market price is read-only and auto-updated -->
           <input type="text" class="form-control" id="currentPrice" readonly>
         </div>
         <div class="mb-3">
@@ -93,6 +98,27 @@
         </div>
         <button type="submit" class="btn btn-primary">Place Trade at Market Price</button>
       </form>
+    </div>
+
+    <!-- Balance Section -->
+    <div id="balance-section" class="d-none">
+      <h2>Account Balance</h2>
+      <div class="mb-3">
+        <strong>Current Balance: $<span id="currentBalance">0.00</span></strong>
+      </div>
+      <div class="mb-3">
+        <label for="balancePeriod" class="form-label">Select Time Period:</label>
+        <select id="balancePeriod" class="form-select" style="width: 200px;">
+          <option value="1d">1 Day</option>
+          <option value="1w">1 Week</option>
+          <option value="1m">1 Month</option>
+          <option value="1y">1 Year</option>
+          <option value="all" selected>All Time</option>
+        </select>
+      </div>
+      <div id="balanceChartContainer">
+        <canvas id="balanceChart"></canvas>
+      </div>
     </div>
 
     <!-- Chat Section -->
@@ -123,12 +149,18 @@
     </div>
   </div>
 
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
   <!-- JavaScript Section -->
   <script>
     let currentUser = null;
     let ws = null;
+    let balanceChart = null;
 
-    // Fetch current user info from the /api/me endpoint.
+    // Fetch current user info from /api/me.
     async function fetchCurrentUser() {
       try {
         const response = await fetch('/api/me');
@@ -143,11 +175,10 @@
       }
     }
 
-    // Show a specific section while hiding all others.
+    // Show only the selected section.
     function showSection(sectionId) {
-      ['portfolio-section', 'trade-section', 'chat-section', 'strategy-section'].forEach(id => {
-        document.getElementById(id).classList.add('d-none');
-      });
+      ['portfolio-section', 'trade-section', 'balance-section', 'chat-section', 'strategy-section']
+        .forEach(id => document.getElementById(id).classList.add('d-none'));
       document.getElementById(sectionId).classList.remove('d-none');
     }
 
@@ -176,7 +207,7 @@
       }
     }
 
-    // Update market price for the selected stock via the /api/quote endpoint.
+    // Update market price for selected stock using /api/quote.
     async function updateMarketPrice() {
       const symbol = document.getElementById('tradeSymbol').value;
       try {
@@ -193,26 +224,22 @@
       }
     }
 
-    // Initialize WebSocket for the chat feature.
+    // Initialize WebSocket connection for chat.
     function initializeWebSocket() {
       ws = new WebSocket(`ws://${window.location.host}/`);
       ws.onopen = function() {
         console.log('[WebSocket] Connected');
-        // Join the chat with the current user's ID and username.
         ws.send(JSON.stringify({ type: 'join', user_id: currentUser.id, username: currentUser.username }));
       };
       ws.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        if (data.type === 'system') {
-          addSystemMessage(data.message);
-        } else if (data.type === 'message') {
-          addChatMessage(data.username, data.message, data.timestamp);
-        }
+        if (data.type === 'system') addSystemMessage(data.message);
+        else if (data.type === 'message') addChatMessage(data.username, data.message, data.timestamp);
       };
       ws.onclose = function() { addSystemMessage('Chat disconnected'); };
     }
 
-    // Add a system message to the chat.
+    // Add a system message to chat.
     function addSystemMessage(msg) {
       const chatMessages = document.getElementById('chatMessages');
       const div = document.createElement('div');
@@ -222,7 +249,7 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // Add a chat message to the chat window.
+    // Add a chat message to chat window.
     function addChatMessage(username, msg, timestamp) {
       const chatMessages = document.getElementById('chatMessages');
       const div = document.createElement('div');
@@ -231,7 +258,7 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // Load current strategy setting.
+    // Load user's current strategy.
     async function loadStrategy() {
       try {
         const response = await fetch('/api/strategy');
@@ -244,21 +271,78 @@
       }
     }
 
-    // Set up event listeners.
+    // Update current balance from /api/balance.
+    async function updateCurrentBalance() {
+      try {
+        const response = await fetch('/api/balance');
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('currentBalance').textContent = parseFloat(data.balance).toFixed(2);
+        }
+      } catch (error) {
+        console.error("Error fetching current balance:", error);
+      }
+    }
+
+    // Load balance history and render chart using Chart.js.
+    async function loadBalanceHistory(period) {
+      try {
+        const response = await fetch(`/api/balance_history?period=${period}`);
+        if (!response.ok) throw new Error('Error loading balance history');
+        const history = await response.json();
+        const labels = history.map(record => new Date(record.timestamp).toLocaleString());
+        const dataPoints = history.map(record => parseFloat(record.balance));
+        const ctx = document.getElementById('balanceChart').getContext('2d');
+        if (balanceChart) balanceChart.destroy();
+        balanceChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Balance Over Time',
+              data: dataPoints,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              fill: true
+            }]
+          },
+          options: {
+            scales: {
+              x: { display: true },
+              y: { display: true }
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Error loading balance history:", error);
+      }
+    }
+
+    // Event Listeners for Navigation Tabs.
     document.getElementById('nav-portfolio').addEventListener('click', () => showSection('portfolio-section'));
     document.getElementById('nav-trade').addEventListener('click', () => showSection('trade-section'));
+    document.getElementById('nav-balance').addEventListener('click', () => {
+      showSection('balance-section');
+      updateCurrentBalance();
+      loadBalanceHistory(document.getElementById('balancePeriod').value);
+    });
     document.getElementById('nav-chat').addEventListener('click', () => {
       showSection('chat-section');
       if (!ws || ws.readyState !== WebSocket.OPEN) initializeWebSocket();
     });
     document.getElementById('nav-strategy').addEventListener('click', () => showSection('strategy-section'));
 
-    // When the stock dropdown changes, update the market price.
+    // When stock dropdown changes, update market price.
     document.getElementById('tradeSymbol').addEventListener('change', updateMarketPrice);
-    // Refresh market price periodically (every 10 seconds).
+    // Refresh market price every 10 seconds.
     setInterval(updateMarketPrice, 10000);
 
-    // Trade form submission: use the read-only market price.
+    // When balance period changes, reload balance history chart.
+    document.getElementById('balancePeriod').addEventListener('change', function() {
+      loadBalanceHistory(this.value);
+    });
+
+    // Trade form submission.
     document.getElementById('tradeForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const symbol = document.getElementById('tradeSymbol').value;
@@ -275,15 +359,16 @@
         if (result.status === 'OK') {
           alert(`Trade placed: ${tradeType} ${quantity} shares of ${symbol} at $${price.toFixed(2)}`);
           loadPerformance();
+          updateCurrentBalance();
         } else {
-          alert('Trade failed');
+          alert(result.error || 'Trade failed');
         }
       } catch (error) {
         alert(error);
       }
     });
 
-    // Strategy form submission: update the user's strategy.
+    // Strategy form submission.
     document.getElementById('strategyForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const strategy = document.getElementById('strategySelect').value;
@@ -304,19 +389,16 @@
       }
     });
 
-    // On page load, check authentication, set up UI, and update market price.
+    // On page load, initialize user info and default sections.
     window.onload = async function() {
       await fetchCurrentUser();
       document.getElementById('user-display').textContent = "Logged in as " + currentUser.username;
       showSection('portfolio-section');
       loadPerformance();
       loadStrategy();
-      // Set initial market price on the trade form.
       updateMarketPrice();
+      updateCurrentBalance();
     };
   </script>
-
-  <!-- Bootstrap JS (optional for navbar collapse behavior) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
