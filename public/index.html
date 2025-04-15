@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Financial Portfolio & Chat</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    #performanceTable, th, td {
+      border: 1px solid #333;
+      border-collapse: collapse;
+      padding: 8px;
+    }
+    #chatMessages {
+      border: 1px solid #ccc;
+      height: 200px;
+      overflow-y: auto;
+      margin-bottom: 1em;
+      padding: 0.5em;
+    }
+    #activeUsers {
+      font-size: 0.9em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Financial Portfolio Management</h1>
+
+<section>
+  <h2>Portfolio Performance</h2>
+  <button id="refreshPerformance">Refresh Performance</button>
+  <table id="performanceTable">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Quantity</th>
+        <th>Avg. Cost</th>
+        <th>Current Value</th>
+        <th>Performance</th>
+      </tr>
+    </thead>
+    <tbody id="performanceBody">
+      <!-- Filled via JS -->
+    </tbody>
+  </table>
+</section>
+
+<hr>
+
+<section>
+  <h2>Place a Trade</h2>
+  <label>Symbol: <input type="text" id="tradeSymbol" value="DEMO"></label>
+  <label>Quantity: <input type="number" id="tradeQuantity" value="10"></label>
+  <label>Price: <input type="number" id="tradePrice" value="100"></label>
+  <label>Type:
+    <select id="tradeType">
+      <option value="buy">Buy</option>
+      <option value="sell">Sell</option>
+    </select>
+  </label>
+  <button id="placeTrade">Place Trade</button>
+</section>
+
+<hr>
+
+<section>
+  <h2>Chat</h2>
+  <div>
+    <label>User ID: <input type="text" id="userIdInput" value="user123"></label>
+    <label>Username: <input type="text" id="usernameInput" value="Alice"></label>
+    <button id="joinChatBtn">Join Chat</button>
+  </div>
+  <div id="chatMessages"></div>
+  <div id="activeUsers">Active users: (none)</div>
+  <div>
+    <input type="text" id="chatInput" placeholder="Type a message" style="width: 70%;">
+    <button id="sendBtn">Send</button>
+  </div>
+</section>
+
+<script>
+  // === Portfolio Performance ===
+
+  const refreshBtn = document.getElementById('refreshPerformance');
+  const performanceBody = document.getElementById('performanceBody');
+
+  refreshBtn.addEventListener('click', async () => {
+    await loadPerformance();
+  });
+
+  async function loadPerformance() {
+    performanceBody.innerHTML = '';
+    try {
+      let response = await fetch('/api/performance');
+      if (!response.ok) throw new Error('Failed to fetch performance data');
+      let data = await response.json();
+
+      // data is an object, with keys = symbol, values = {quantity, avg_cost, current_value, performance}
+      for (let symbol in data) {
+        let row = document.createElement('tr');
+        let record = data[symbol];
+        row.innerHTML = `
+          <td>${symbol}</td>
+          <td>${record.quantity}</td>
+          <td>${record.avg_cost.toFixed(2)}</td>
+          <td>${record.current_value.toFixed(2)}</td>
+          <td>${record.performance.toFixed(2)}</td>
+        `;
+        performanceBody.appendChild(row);
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  // Load performance on page load
+  window.addEventListener('load', loadPerformance);
+
+  // === Place a Trade ===
+  const placeTradeBtn = document.getElementById('placeTrade');
+  placeTradeBtn.addEventListener('click', async () => {
+    let symbol    = document.getElementById('tradeSymbol').value;
+    let quantity  = parseInt(document.getElementById('tradeQuantity').value, 10);
+    let price     = parseFloat(document.getElementById('tradePrice').value);
+    let tradeType = document.getElementById('tradeType').value;
+
+    if (!symbol || !quantity || !price) {
+      alert('Please fill out symbol, quantity, and price.');
+      return;
+    }
+
+    try {
+      let response = await fetch('/api/trade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          symbol: symbol,
+          quantity: quantity,
+          price: price,
+          trade_type: tradeType
+        })
+      });
+      let result = await response.json();
+      if (result.status === 'OK') {
+        alert(`Trade placed: ${tradeType} ${quantity} shares of ${symbol} @ ${price}`);
+        // Optionally refresh performance to show new changes
+        await loadPerformance();
+      } else {
+        alert('Trade failed.');
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // === Chat (WebSocket) ===
+  let ws = null;
+  let joined = false;
+
+  const chatMessages = document.getElementById('chatMessages');
+  const activeUsersDiv = document.getElementById('activeUsers');
+  const joinChatBtn = document.getElementById('joinChatBtn');
+  const sendBtn = document.getElementById('sendBtn');
+  const chatInput = document.getElementById('chatInput');
+
+  joinChatBtn.addEventListener('click', () => {
+    if (joined) {
+      alert('You have already joined the chat.');
+      return;
+    }
+    const userId = document.getElementById('userIdInput').value.trim();
+    const username = document.getElementById('usernameInput').value.trim();
+    if (!userId || !username) {
+      alert('Please enter a valid user ID and username.');
+      return;
+    }
+
+    // Open WebSocket connection
+    ws = new WebSocket(`ws://${window.location.host}/`);
+    ws.onopen = () => {
+      console.log('[WebSocket] Connected');
+      ws.send(JSON.stringify({ type: 'join', user_id: userId, username: username }));
+      joined = true;
+    };
+    ws.onmessage = (event) => {
+      // Data from server
+      const data = JSON.parse(event.data);
+      if (data.type === 'system') {
+        addSystemMessage(data.message);
+        updateActiveUsers(data.active_users);
+      } else if (data.type === 'message') {
+        addChatMessage(data.username, data.message, data.timestamp);
+      }
+    };
+    ws.onclose = () => {
+      console.log('[WebSocket] Disconnected');
+      addSystemMessage('Chat disconnected');
+      joined = false;
+    };
+  });
+
+  sendBtn.addEventListener('click', () => {
+    sendChatMessage();
+  });
+  chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      sendChatMessage();
+    }
+  });
+
+  function sendChatMessage() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      alert('You must join the chat before sending messages.');
+      return;
+    }
+    const message = chatInput.value.trim();
+    if (message.length === 0) return;
+    ws.send(JSON.stringify({ type: 'message', message }));
+    chatInput.value = '';
+  }
+
+  function addSystemMessage(msg) {
+    const line = document.createElement('div');
+    line.textContent = `[SYSTEM] ${msg}`;
+    line.style.fontStyle = 'italic';
+    chatMessages.appendChild(line);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function addChatMessage(username, msg, timestamp) {
+    const line = document.createElement('div');
+    line.textContent = `[${timestamp}] ${username}: ${msg}`;
+    chatMessages.appendChild(line);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function updateActiveUsers(usersMap) {
+    // usersMap is an object of { user_id => { name, active } }
+    const names = Object.values(usersMap).map(u => u.name);
+    if (names.length === 0) {
+      activeUsersDiv.textContent = 'Active users: (none)';
+    } else {
+      activeUsersDiv.textContent = 'Active users: ' + names.join(', ');
+    }
+  }
+</script>
+
+</body>
+</html>
