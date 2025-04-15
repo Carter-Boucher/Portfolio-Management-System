@@ -1,4 +1,3 @@
-# lib/portfolio/strategies/example_strategy.rb
 
 module Portfolio
     module Strategies

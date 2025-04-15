@@ -1,4 +1,3 @@
-# config.ru
 
 require_relative 'app'
 use Rack::Session::Cookie, key: 'rack.session', secret: 'your_secret_key_here'

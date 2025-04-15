@@ -1,4 +1,3 @@
-# lib/auth/user.rb
 
 module Auth
     class User

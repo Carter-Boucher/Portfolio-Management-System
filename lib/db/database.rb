@@ -1,4 +1,3 @@
-# lib/db/database.rb
 require 'sequel'
 require 'fileutils'
 

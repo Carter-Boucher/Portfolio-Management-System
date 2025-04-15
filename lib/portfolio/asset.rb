@@ -1,4 +1,3 @@
-# lib/portfolio/asset.rb
 require_relative '../market/stock_data'
 
 module Portfolio

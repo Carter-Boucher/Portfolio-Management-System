@@ -1,4 +1,3 @@
-# lib/server/web_app.rb
 require 'json'
 require 'rack'
 require 'rack/utils'

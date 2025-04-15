@@ -1,4 +1,3 @@
-# lib/market/stock_data.rb
 require 'net/http'
 require 'json'
 
@@ -7,8 +6,8 @@ module Market
     # Cache stock prices with a timestamp: { symbol => { price: <Float>, fetched_at: <Time> } }
     @@cache = {}
 
-    # Use your provided API key.
-    API_KEY = "XCYOQBRUODYA19QY"
+    # API key from .env
+    API_KEY = ""
     BASE_URL = "https://www.alphavantage.co/query"
 
     def self.fetch_price(symbol)

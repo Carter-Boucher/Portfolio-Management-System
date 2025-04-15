@@ -1,4 +1,3 @@
-# lib/portfolio/strategies/momentum_strategy.rb
 module Portfolio
     module Strategies
       class MomentumStrategy

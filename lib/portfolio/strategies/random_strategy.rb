@@ -1,4 +1,3 @@
-# lib/portfolio/strategies/random_strategy.rb
 module Portfolio
     module Strategies
       class RandomStrategy

@@ -1,4 +1,3 @@
-# lib/portfolio/trade.rb
 
 module Portfolio
     class Trade

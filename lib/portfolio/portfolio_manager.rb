@@ -1,4 +1,3 @@
-# lib/portfolio/portfolio_manager.rb
 module Portfolio
   class PortfolioManager
     def self.place_trade(user_id:, symbol:, quantity:, price:, trade_type:)

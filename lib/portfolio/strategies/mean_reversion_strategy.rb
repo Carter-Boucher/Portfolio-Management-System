@@ -1,4 +1,3 @@
-# lib/portfolio/strategies/mean_reversion_strategy.rb
 module Portfolio
     module Strategies
       class MeanReversionStrategy

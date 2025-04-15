@@ -1,4 +1,3 @@
-# lib/auth/auth_manager.rb
 require 'securerandom'
 require_relative '../db/database'
 

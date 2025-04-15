@@ -1,4 +1,3 @@
-# lib/chat/chat_server.rb
 require 'faye/websocket'
 require 'json'
 require 'thread'

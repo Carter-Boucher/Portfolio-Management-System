@@ -1,4 +1,3 @@
-# lib/chat/chat_room.rb
 module Chat
   class ChatRoom
     def self.join(user_id, username)
